@@ -1,0 +1,47 @@
+6A . Implement the different Distance methods (Euclidean, Manhattan Distance, Minkowski Distance) with Prediction, Test Score and Confusion Matrix.
+from math import sqrt
+from sklearn.metrics import confusion_matrix, classification_report
+def euclidean_distance(a, b):
+    return sqrt(sum((e1-e2) ** 2 for e1, e2 in zip(a, b)))
+def manhattan_distance(a, b):
+    return sum(abs(e1 - e2) for e1, e2 in zip(a, b))
+def minkowski_distance(a, b, p):
+    return sum(abs(e1 - e2) ** p for e1, e2 in zip(a, b)) ** (1/p)
+actual = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1]
+predicted = [1, 0, 0, 1, 0, 0, 0, 1, 0, 0]
+dist1 = euclidean_distance(actual, predicted)
+print("Euclidean Distance: ", dist1)
+dist2 = manhattan_distance(actual, predicted)
+print("Manhattan Distance: ", dist2)
+dist3 = minkowski_distance(actual, predicted, 1)
+print("Minkowski Distance wiht p = 1: ", dist3)
+dist3 = minkowski_distance(actual, predicted, 2)
+print("Minkowski Distance with p = 2: ", dist3)
+matrix = confusion_matrix(actual, predicted, labels=[1, 0])
+print("Confusion Matrix: \n", matrix)
+tp, fn, fp, tn = confusion_matrix(actual, predicted, labels=[1, 0]).reshape(-1)
+print("Outcome values: \n", tp, fn, fp, tn)
+matrix = classification_report(actual, predicted, labels=[1, 0])
+print("Classificaiton report: \n", matrix)
+
+6B K mean clustering 
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+raw_data = pd.read_csv('C:/Users/Aditi/Downloads/Classified Data.csv', index_col=0)
+print(raw_data.head())
+print(raw_data.columns)
+scaler = StandardScaler()
+scaler.fit(raw_data.drop('TARGET CLASS', axis=1))
+scaled_features = scaler.transform(raw_data.drop('TARGET CLASS', axis=1))
+scaled_data = pd.DataFrame(scaled_features, columns=raw_data.drop('TARGET CLASS', axis=1).columns)
+x = scaled_data
+y = raw_data['TARGET CLASS']
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+model = KNeighborsClassifier(n_neighbors=1)
+model.fit(x_train, y_train)
+predictions = model.predict(x_test)
+print(classification_report(y_test, predictions))
+print(confusion_matrix(y_test, predictions))

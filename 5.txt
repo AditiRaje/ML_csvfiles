@@ -1,0 +1,44 @@
+5A decision tree based ID3 algorithm
+from sklearn import datasets
+from sklearn.tree import DecisionTreeClassifier, export_graphviz, plot_tree
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+iris = datasets.load_iris()
+X = iris.data
+y = iris.target
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=1)
+clf = DecisionTreeClassifier()
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+print("Confusion Matrix: \n", confusion_matrix(y_test, y_pred))
+print("Accuracy: ", accuracy_score(y_test, y_pred))
+plot_tree(clf, feature_names=iris.feature_names, class_names=iris.target_names)
+plt.show()
+
+5B Write a program to implement K-Nearest Neighbour algorithm to classify the iris data set.
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn import datasets
+from sklearn.model_selection import train_test_split, GridSearchCV
+iris = datasets.load_iris()
+X = iris.data
+y = iris.target
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+pipeline = make_pipeline(StandardScaler(), KNeighborsClassifier())
+param_grid = {
+    'kneighborsclassifier__n_neighbors': [2, 3, 4, 5, 6, 7, 8, 9, 10],
+    'kneighborsclassifier__p': [1, 2],
+    'kneighborsclassifier__weights': ['uniform', 'distance'],
+    'kneighborsclassifier__algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+}
+gs = GridSearchCV(pipeline, param_grid=param_grid,
+                  scoring='accuracy',
+                  refit=True,
+                  cv=10,
+                  verbose=1,
+                  n_jobs=2)
+gs.fit(X_train, y_train)
+print('Best Score: %.3f' % gs.best_score_,
+      '\nBest Parameters: ', gs.best_params_)
