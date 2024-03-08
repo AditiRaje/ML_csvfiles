@@ -1,0 +1,161 @@
+2A Perform Data Loading, Feature selection (Principal Component Analysis) and Feature Scoring and Ranking.
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix
+dataset = pd.read_csv("C:/Users/Aditi/Downloads/archive (4)/winequality-red.csv")
+X = dataset.iloc[:, :-1].values
+y = dataset.iloc[:, -1].values
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+sc = StandardScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+pca = PCA(n_components=2)
+X_train_pca = pca.fit_transform(X_train)
+X_test_pca = pca.transform(X_test)
+classifier = LogisticRegression(random_state=0, multi_class="multinomial")
+classifier.fit(X_train_pca, y_train)
+y_pred = classifier.predict(X_test_pca)
+cm = confusion_matrix(y_test, y_pred)
+print("Confusion Matrix:")
+print(cm)
+plt.figure(figsize=(10, 6))
+for i, j in enumerate(np.unique(y_train)):
+    plt.scatter(X_train_pca[y_train == j, 0], X_train_pca[y_train == j, 1], label=str(j))
+plt.title("Logistic Regression (Training Set)")
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.legend()
+plt.show()
+plt.figure(figsize=(10, 6))
+for i, j in enumerate(np.unique(y_test)):
+    plt.scatter(X_test_pca[y_test == j, 0], X_test_pca[y_test == j, 1], label=str(j))
+plt.title("Logistic Regression (Test Set)")
+plt.xlabel("PC1")
+plt.ylabel("PC2")
+plt.legend()
+plt.show()
+
+2B For a given set of training data examples stored in .CSV file, implement and demonstrate the Candidate-Elimination algorithm to output a description of the set of all hypotheses consistent with the training examples.
+
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
+def g_0(n):
+    return ("?",) * n
+
+def s_0(n):
+    return ('0',) * n
+
+def more_general(h1, h2):
+    return all(x == "?" or (x != "0" and (x == y or y == "0")) for x, y in zip(h1, h2))
+
+def fulfills(example, hypothesis):
+    return more_general(hypothesis, example)
+
+def min_generalizations(h, x):
+    return [tuple('?' if h_i != '0' and h_i != x_i else h_i for h_i, x_i in zip(h, x))]
+
+def min_specializations(h, domains, x):
+    return [tuple('0' if h_i == x_i else h_i for h_i, x_i in zip(h, x)) for h in h if h != '0'] + \
+           [tuple(val if h_i == '0' else h_i for h_i, val in zip(h, domains_i)) for h_i, domains_i in zip(h, domains) if h_i == "?"]
+
+with open('C:/Users/Aditi/OneDrive/Documents/season-dataset.csv') as csvFile:
+    examples = [tuple(line) for line in csv.reader(csvFile)]
+
+def get_domains(examples):
+    return [list(sorted(set(x_i for x in examples))) for x_i in zip(*examples)]
+
+def candidate_elimination(examples):
+    domains = get_domains(examples)[:-1]
+
+    G = set([g_0(len(domains))])
+    S = set([s_0(len(domains))])
+
+    for x_cx in examples:
+        x, cx = x_cx[:-1], x_cx[-1]
+        if cx == 'Y':
+            G = {g for g in G if fulfills(x, g)}
+            S = {s for s in S if not fulfills(x, s)}
+            S.update(min_generalizations(s, x) for s in S)
+            S = {s for s in S if any([more_general(g, s) for g in G])}
+            S -= {s for s in S if any([more_general(s, s1) for s1 in S if s != s1])}
+        else:
+            S = {s for s in S if not fulfills(x, s)}
+            G = {g for g in G if any([fulfills(x, s) for s in S])}
+            G.update(min_specializations(g, domains, x) for g in G)
+            G -= {g for g in G if any([more_general(g1, g) for g1 in G if g != g1])}
+    return G, S
+
+G, S = candidate_elimination(examples)
+print("G[4] = ", G)
+print("S[4] = ", S)
+
+def build_hypothesis_space(G, S):
+    levels = [[HypothesisNode(x, 0) for x in G]]
+    curlevel = 1
+
+    def next_level(h, S):
+        for s in S:
+            for i in range(len(h)):
+                if h[i] == "?" and s[i] != "?":
+                    yield h[:i] + (s[i],) + h[i + 1:]
+
+    nextLvl = {}
+
+    while True:
+        for n in levels[-1]:
+            for hyp in next_level(n.h, S):
+                if hyp in nextLvl:
+                    nextLvl[hyp].parents.add(n)
+                else:
+                    nextLvl[hyp] = HypothesisNode(hyp, curlevel, [n])
+        if not nextLvl:
+            break
+        levels.append(list(nextLvl.values()))
+        curlevel += 1
+        nextLvl = {}
+    return levels
+
+def draw_hypothesis_space(G, S):
+    levels = build_hypothesis_space(G, S)
+
+    g = nx.Graph()
+
+    for nodes in levels:
+        for n in nodes:
+            for p in n.parents:
+                g.add_edge(n.h, p.h)
+
+    pos = {}
+    ymin = 0.1
+    ymax = 0.9
+
+    for nodes, y in [(levels[0], ymin), (levels[-1], ymax)]:
+        xvals = np.linspace(0, 1, len(nodes))
+        for x, n in zip(xvals, nodes):
+            pos[n.h] = [x, y]
+
+    pos = nx.layout.fruchterman_reingold_layout(g, pos=pos, fixed=pos.keys())
+
+    nx.draw_networkx_edges(g, pos=pos, alpha=0.25)
+    nx.draw_networkx_labels(g, pos=pos)
+
+    plt.box(True)
+    plt.xticks([])
+    plt.yticks([])
+    plt.xlim(-1, 2)
+    plt.gcf().set_size_inches((10, 10))
+    plt.show()
+
+print()
+draw_hypothesis_space(G, S)
+
